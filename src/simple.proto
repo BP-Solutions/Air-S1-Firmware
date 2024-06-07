@@ -2,4 +2,5 @@ syntax = "proto3";
 
 message SimpleMessage {
     int32 lucky_number = 1;
+    int32 value = 2;
 }

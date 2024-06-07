@@ -55,6 +55,7 @@ void testPB() {
 
         /* Fill in the lucky number */
         message.lucky_number = 13;
+        message.value = 21;
 
         /* Now we are ready to encode the message! */
         status = pb_encode(&stream, SimpleMessage_fields, &message);
@@ -97,7 +98,65 @@ void testPB() {
         }
 
         /* Print the data contained in the message. */
-        printf("Your lucky number was %d!\n", message.lucky_number);
+        printf("number was %d!\n", message.lucky_number);
+    }
+}
+
+void changeColor(int tests){
+    if (xQueueSend(xStatusQueue, &tests, portMAX_DELAY) != pdPASS) {
+        printf("Failed to send to queue\n");
+    }
+}
+
+void serial_task(void *pvParameters) {
+    char input_hex[256];
+    size_t input_pos = 0;
+
+    int colors = 2;
+
+    while (1) {
+
+
+        // Check if there is input available
+        int c = getchar_timeout_us(0);
+        if (c != PICO_ERROR_TIMEOUT) {
+            if (c == '\n' || c == '\r') {
+                if (input_pos > 0) {
+                    input_hex[input_pos] = '\0';
+                    size_t input_length = input_pos;
+                    uint8_t buffer[128];
+                    size_t buffer_length = input_length / 2;
+
+                    for (size_t i = 0; i < buffer_length; ++i) {
+                        sscanf(input_hex + 2 * i, "%2hhx", &buffer[i]);
+                    }
+
+                    SimpleMessage message = SimpleMessage_init_zero;
+                    pb_istream_t stream = pb_istream_from_buffer(buffer, buffer_length);
+                    bool status = pb_decode(&stream, SimpleMessage_fields, &message);
+
+                    if (!status) {
+                        printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
+                    } else {
+                        printf("Decoded message: lucky_number = %d, value = %d\n", message.lucky_number, message.value);
+                    }
+
+                    if(message.value == 21){
+                        if (colors == 2) {
+                            colors = 3;
+                        } else {
+                            colors = 2;
+                        }
+                        changeColor(colors);
+                        printf("changed led color");
+                    }
+                    input_pos = 0; // Reset input buffer
+                }
+            } else if (input_pos < sizeof(input_hex) - 1) {
+                input_hex[input_pos++] = c;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(10)); // Short delay to yield to other tasks
     }
 }
 
@@ -126,6 +185,8 @@ void neopixel_task(void *pvParameters) {
     while (1) {
         xQueueReceive(xStatusQueue, &receivedStatus, 0);
 
+        printf("led thing is called with status %d \n", receivedStatus);
+
         if (receivedStatus == 1) {
             r = 255;
             g = 136;
@@ -139,7 +200,7 @@ void neopixel_task(void *pvParameters) {
             g = 0;
             b = 0;
 
-            s = 2;
+            s = 3;
             n = 2;
             on = false;
         } else if (receivedStatus == 3) {
@@ -147,7 +208,7 @@ void neopixel_task(void *pvParameters) {
             g = 255;
             b = 0;
 
-            s = 3;
+            s = 4;
             n = 2;
             on = false;
         } else if (receivedStatus == 4) {
@@ -246,8 +307,9 @@ int main() {
 
 
     xTaskCreate(led_task, "led_task", 256, NULL, 1, NULL);
-    xTaskCreate(vSetStatusTask, "vSetStatusTask", 256, NULL, 2, NULL);
-    xTaskCreate(neopixel_task, "neopixel_task", 256, NULL, 2, NULL);
+//    xTaskCreate(vSetStatusTask, "vSetStatusTask", 256, NULL, 2, NULL);
+    xTaskCreate(neopixel_task, "neopixel_task", 512, NULL, 3, NULL);
+    xTaskCreate(serial_task, "serial_task", 512, NULL, 4, NULL);
 
     vTaskStartScheduler();
 }
