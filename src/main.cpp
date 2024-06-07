@@ -305,9 +305,8 @@ int main() {
     testPB();
 
 
-
     xTaskCreate(led_task, "led_task", 256, NULL, 1, NULL);
-//    xTaskCreate(vSetStatusTask, "vSetStatusTask", 256, NULL, 2, NULL);
+    xTaskCreate(vSetStatusTask, "vSetStatusTask", 256, NULL, 2, NULL);
     xTaskCreate(neopixel_task, "neopixel_task", 512, NULL, 3, NULL);
     xTaskCreate(serial_task, "serial_task", 512, NULL, 4, NULL);
 
