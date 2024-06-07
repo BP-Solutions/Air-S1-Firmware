@@ -26,7 +26,11 @@ add_compile_definitions(PICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=1)
 # Initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib/nanopb/extra)
+
 add_subdirectory(lib/pico_neopixels)
+
+add_subdirectory(lib/nanopb)
 
 # Add subdirectories
 add_subdirectory(src)

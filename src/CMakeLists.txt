@@ -9,6 +9,11 @@ target_include_directories(${ProjectName} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../lib
 )
 
+
+find_package(Nanopb REQUIRED)
+
+nanopb_generate_cpp(TARGET proto simple.proto)
+
 # Link libraries
 target_link_libraries(${ProjectName}
         pico_stdlib
@@ -22,6 +27,7 @@ target_link_libraries(${ProjectName}
 #        pico_cyw43_arch_lwip_sys_freertos
         FreeRTOS-Kernel-Heap4
         pico_neopixel
+        proto
 )
 
 # Enable USB output, disable UART output
