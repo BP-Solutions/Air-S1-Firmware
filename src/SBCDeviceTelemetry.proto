@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+// Message sent to RP2040 from MCU
+message SBCDeviceTelemetry {
+    int32 statCode = 1;
+    bool inErrorState = 2;
+    bool sampleSensors = 3;
+}

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+// Message sent to MCU from RP2040
+message RPDeviceReading {
+    int32 co2 = 1;
+    int32 ppm = 2;
+    int32 temp = 3;
+    int32 humid = 4;
+}

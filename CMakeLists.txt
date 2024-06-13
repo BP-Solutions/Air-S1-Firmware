@@ -6,16 +6,8 @@ set(PICO_SDK_PATH "C:/Program Files/Raspberry Pi/Pico SDK v1.5.1/pico-sdk/")
 # Name project
 SET(ProjectName air-s1)
 
-# set board
-set(PICO_BOARD pico_w)
-
-
-# Set any variables required for importing libraries
-SET(FREERTOS_KERNEL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib/FreeRTOS-Kernel)
-
 # Import those libraries
 include(pico_sdk_import.cmake)
-include(${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/FreeRTOS_Kernel_import.cmake)
 
 # Define project
 project(${ProjectName} CXX C ASM)

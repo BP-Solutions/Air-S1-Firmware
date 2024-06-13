@@ -9,10 +9,14 @@ target_include_directories(${ProjectName} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../lib
 )
 
-
 find_package(Nanopb REQUIRED)
 
-nanopb_generate_cpp(TARGET proto simple.proto)
+# Generate C++ code for the proto files
+nanopb_generate_cpp(
+        TARGET proto
+        SBCDeviceTelemetry.proto
+        RPDeviceReading.proto
+)
 
 # Link libraries
 target_link_libraries(${ProjectName}
@@ -20,12 +24,7 @@ target_link_libraries(${ProjectName}
         hardware_gpio
         hardware_spi
         hardware_timer
-        pico_lwip_mqtt
-        pico_lwip_mbedtls
         pico_mbedtls
-        pico_cyw43_arch_lwip_threadsafe_background
-#        pico_cyw43_arch_lwip_sys_freertos
-        FreeRTOS-Kernel-Heap4
         pico_neopixel
         proto
 )
