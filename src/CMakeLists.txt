@@ -14,8 +14,8 @@ find_package(Nanopb REQUIRED)
 # Generate C++ code for the proto files
 nanopb_generate_cpp(
         TARGET proto
-        SBCDeviceTelemetry.proto
-        RPDeviceReading.proto
+        protobufs/SBCDeviceTelemetry.proto
+        protobufs/RPDeviceReading.proto
 )
 
 # Link libraries
