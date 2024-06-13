@@ -188,7 +188,6 @@ void setup() {
     pixels.begin();
     pixels.setPixelColor(0, pixels.Color(255, 0, 0));
     pixels.show();
-
 }
 
 int main() {
