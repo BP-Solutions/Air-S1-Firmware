@@ -24,7 +24,6 @@ target_link_libraries(${ProjectName}
         hardware_gpio
         hardware_spi
         hardware_timer
-        pico_mbedtls
         pico_neopixel
         proto
 )
