@@ -192,11 +192,9 @@ void setup() {
 
 int main() {
     stdio_init_all();
-    sleep_ms(1000);
-
+    sleep_ms(100);
     setup();
-
-    sleep_ms(1000);
+    sleep_ms(100);
 
     while (true) {
         bool takeMeasure = waitForSBC();
