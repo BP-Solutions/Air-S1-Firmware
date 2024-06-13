@@ -24,5 +24,7 @@ add_subdirectory(lib/pico_neopixels)
 
 add_subdirectory(lib/nanopb)
 
+add_subdirectory(lib/S8_UART)
+
 # Add subdirectories
 add_subdirectory(src)

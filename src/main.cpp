@@ -22,6 +22,63 @@ Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 int ledstatus = 0;
 
+#include "pico/stdlib.h"
+#include "hardware/uart.h"
+#include "hardware/gpio.h"
+
+#include "s8_uart.h"
+
+/* BEGIN CONFIGURATION */
+#define DEBUG_BAUDRATE 115200
+#define S8_RX_PIN 1         // Rx pin which the S8 Tx pin is attached to
+#define S8_TX_PIN 0         // Tx pin which the S8 Rx pin is attached to
+#define UART_ID uart0       // UART port
+/* END CONFIGURATION */
+
+S8_UART *sensor_S8;
+S8_sensor sensor;
+
+
+void testSensor() {
+    // Initialize UART for S8 sensor
+
+
+    sleep_ms(100);
+    // Check if S8 is available
+    sensor_S8->get_firmware_version(sensor.firm_version);
+    int len = strlen(sensor.firm_version);
+    if (len == 0) {
+        printf("SenseAir S8 CO2 sensor not found!\n");
+        while (1) {
+            sleep_ms(1);
+        };
+    }
+
+    // Show S8 sensor info
+    printf(">>> SenseAir S8 NDIR CO2 sensor <<<\n");
+
+    printf("Firmware version: %s\n", sensor.firm_version);
+
+    sensor.sensor_type_id = sensor_S8->get_sensor_type_ID();
+    printf("Sensor type: 0x%08X\n", sensor.sensor_type_id);
+
+    sensor.sensor_id = sensor_S8->get_sensor_ID();
+    printf("Sensor ID: 0x%08X\n", sensor.sensor_id);
+
+    sensor.map_version = sensor_S8->get_memory_map_version();
+    printf("Memory map version: %d\n", sensor.map_version);
+
+    sensor.abc_period = sensor_S8->get_ABC_period();
+
+    if (sensor.abc_period > 0) {
+        printf("ABC (automatic background calibration) period: %d hours\n", sensor.abc_period);
+    } else {
+        printf("ABC (automatic calibration) is disabled\n");
+    }
+
+}
+
+
 void ledStatus(int receivedStatus) {
     absolute_time_t startTime = get_absolute_time();
 
@@ -112,6 +169,11 @@ void ledStatus(int receivedStatus) {
     sleep_ms(4000 - duration);
 }
 
+int readCO2(){
+    sensor.co2 = sensor_S8->get_co2();
+    return sensor.co2;
+}
+
 void pollSensors() {
     uint8_t buffer[128];
     size_t message_length;
@@ -121,7 +183,7 @@ void pollSensors() {
 
     pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
-    message.co2 = 315;
+    message.co2 = readCO2();
     message.ppm = 20;
     message.temp = 72;
     message.humid = 50;
@@ -188,18 +250,21 @@ void setup() {
     pixels.begin();
     pixels.setPixelColor(0, pixels.Color(255, 0, 0));
     pixels.show();
+
+    sensor_S8 = new S8_UART(UART_ID, S8_TX_PIN, S8_RX_PIN);
 }
 
 int main() {
     stdio_init_all();
     sleep_ms(100);
     setup();
-    sleep_ms(100);
+    sleep_ms(5000);
 
     while (true) {
+
         bool takeMeasure = waitForSBC();
 
-        if(takeMeasure){
+        if (takeMeasure) {
             pollSensors();
         }
 
