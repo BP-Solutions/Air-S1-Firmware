@@ -16,7 +16,7 @@
 using namespace std;
 
 
-#define PIN 27
+#define PIN 12
 #define NUMPIXELS 1
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
@@ -24,15 +24,16 @@ int ledstatus = 0;
 
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
+
 #include "hardware/gpio.h"
 
 #include "s8_uart.h"
 
 /* BEGIN CONFIGURATION */
 #define DEBUG_BAUDRATE 115200
-#define S8_RX_PIN 1         // Rx pin which the S8 Tx pin is attached to
-#define S8_TX_PIN 0         // Tx pin which the S8 Rx pin is attached to
-#define UART_ID uart0       // UART port
+#define S8_RX_PIN 29         // Rx pin which the S8 Tx pin is attached to
+#define S8_TX_PIN 28       // Tx pin which the S8 Rx pin is attached to
+#define UART_ID uart0     // UART port
 /* END CONFIGURATION */
 
 S8_UART *sensor_S8;
@@ -247,6 +248,11 @@ bool waitForSBC() {
 }
 
 void setup() {
+    //en rgb led
+    gpio_init(11);
+    gpio_set_dir(11, GPIO_OUT);
+    gpio_put(11, 1);
+
     pixels.begin();
     pixels.setPixelColor(0, pixels.Color(255, 0, 0));
     pixels.show();
