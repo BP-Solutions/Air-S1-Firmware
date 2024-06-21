@@ -10,7 +10,7 @@ add_library(S8UART
 
 target_link_libraries(S8UART pico_stdlib)
 
-target_include_directories(pico_neopixel INTERFACE ${CMAKE_CURRENT_LIST_DIR}/src)
+target_include_directories(S8UART INTERFACE ${CMAKE_CURRENT_LIST_DIR}/src)
 
 # Include directories
 target_include_directories(S8UART PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

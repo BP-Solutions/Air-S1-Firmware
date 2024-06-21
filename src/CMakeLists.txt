@@ -27,11 +27,12 @@ target_link_libraries(${ProjectName}
         pico_neopixel
         proto
         S8UART
+        SEN54
 )
 
 # Enable USB output, disable UART output
 pico_enable_stdio_usb(${ProjectName} 1)
-pico_enable_stdio_uart(${ProjectName} 0)
+pico_enable_stdio_uart(${ProjectName} 1)
 
 # Create map/bin/hex/uf2 files
 pico_add_extra_outputs(${ProjectName})

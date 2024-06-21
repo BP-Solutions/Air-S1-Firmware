@@ -1,84 +1,47 @@
-#include "hardware/structs/rosc.h"
-
+#include <cstring>
 #include <cmath>
 #include <cstdio>
-
-#include "pico/stdlib.h"
-
-#include "Adafruit_NeoPixel.hpp"
-
 #include <pb_encode.h>
 #include <pb_decode.h>
+
+#include "pico/stdlib.h"
+#include "hardware/uart.h"
+#include "hardware/structs/rosc.h"
+#include "hardware/gpio.h"
+
+#include "Adafruit_NeoPixel.hpp"
 
 #include "RPDeviceReading.pb.h"
 #include "SBCDeviceTelemetry.pb.h"
 
+#include "s8_uart.h"
+
+#include "sen5x_i2c.h"
+#include "sensirion_i2c_hal.h"
+
 using namespace std;
 
 
-#define PIN 12
-#define NUMPIXELS 1
-Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
-
 int ledstatus = 0;
+Adafruit_NeoPixel pixels(1, 12, NEO_GRB + NEO_KHZ800);
 
-#include "pico/stdlib.h"
-#include "hardware/uart.h"
-
-#include "hardware/gpio.h"
-
-#include "s8_uart.h"
-
-/* BEGIN CONFIGURATION */
-#define DEBUG_BAUDRATE 115200
-#define S8_RX_PIN 29         // Rx pin which the S8 Tx pin is attached to
-#define S8_TX_PIN 28       // Tx pin which the S8 Rx pin is attached to
-#define UART_ID uart0     // UART port
-/* END CONFIGURATION */
-
+#define S8_RX_PIN 29
+#define S8_TX_PIN 28
+#define UART_ID uart0
 S8_UART *sensor_S8;
 S8_sensor sensor;
 
 
-void testSensor() {
-    // Initialize UART for S8 sensor
-
-
-    sleep_ms(100);
-    // Check if S8 is available
-    sensor_S8->get_firmware_version(sensor.firm_version);
-    int len = strlen(sensor.firm_version);
-    if (len == 0) {
-        printf("SenseAir S8 CO2 sensor not found!\n");
-        while (1) {
-            sleep_ms(1);
-        };
-    }
-
-    // Show S8 sensor info
-    printf(">>> SenseAir S8 NDIR CO2 sensor <<<\n");
-
-    printf("Firmware version: %s\n", sensor.firm_version);
-
-    sensor.sensor_type_id = sensor_S8->get_sensor_type_ID();
-    printf("Sensor type: 0x%08X\n", sensor.sensor_type_id);
-
-    sensor.sensor_id = sensor_S8->get_sensor_ID();
-    printf("Sensor ID: 0x%08X\n", sensor.sensor_id);
-
-    sensor.map_version = sensor_S8->get_memory_map_version();
-    printf("Memory map version: %d\n", sensor.map_version);
-
-    sensor.abc_period = sensor_S8->get_ABC_period();
-
-    if (sensor.abc_period > 0) {
-        printf("ABC (automatic background calibration) period: %d hours\n", sensor.abc_period);
-    } else {
-        printf("ABC (automatic calibration) is disabled\n");
-    }
-
-}
-
+int16_t error = 0;
+struct SensorValues {
+    int mass_concentration_pm1p0;
+    int mass_concentration_pm2p5;
+    int mass_concentration_pm4p0;
+    int mass_concentration_pm10p0;
+    int ambient_humidity;
+    int ambient_temperature;
+    int voc_index;
+};
 
 void ledStatus(int receivedStatus) {
     absolute_time_t startTime = get_absolute_time();
@@ -167,12 +130,41 @@ void ledStatus(int receivedStatus) {
     absolute_time_t endTime = get_absolute_time();
     int64_t duration = absolute_time_diff_us(startTime, endTime) / 1000;
 
-    sleep_ms(4000 - duration);
+    sleep_ms(4000 - duration); //superloop iteration duration
 }
 
-int readCO2(){
+int readCO2() {
     sensor.co2 = sensor_S8->get_co2();
     return sensor.co2;
+}
+
+SensorValues readPPM() {
+    uint16_t mass_concentration_pm1p0;
+    uint16_t mass_concentration_pm2p5;
+    uint16_t mass_concentration_pm4p0;
+    uint16_t mass_concentration_pm10p0;
+    int16_t ambient_humidity;
+    int16_t ambient_temperature;
+    int16_t voc_index;
+    int16_t nox_index;
+
+    int error = sen5x_read_measured_values(&mass_concentration_pm1p0, &mass_concentration_pm2p5,
+                                           &mass_concentration_pm4p0, &mass_concentration_pm10p0, &ambient_humidity,
+                                           &ambient_temperature, &voc_index, &nox_index);
+
+    SensorValues values{};
+
+    if (!error) {
+        values.mass_concentration_pm1p0 = mass_concentration_pm1p0;
+        values.mass_concentration_pm2p5 = mass_concentration_pm2p5;
+        values.mass_concentration_pm4p0 = mass_concentration_pm4p0;
+        values.mass_concentration_pm10p0 = mass_concentration_pm10p0;
+        values.ambient_humidity = (ambient_humidity == 0x7fff) ? -1 : ambient_humidity / 100.0f;
+        values.ambient_temperature = (ambient_temperature == 0x7fff) ? -1 : ambient_temperature / 200.0f;
+        values.voc_index = static_cast<int>(voc_index / 10.0f);
+    }
+
+    return values;
 }
 
 void pollSensors() {
@@ -184,10 +176,17 @@ void pollSensors() {
 
     pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
+    SensorValues data = readPPM();
+
     message.co2 = readCO2();
-    message.ppm = 20;
-    message.temp = 72;
-    message.humid = 50;
+
+    message.pm1p0 = data.mass_concentration_pm1p0;
+    message.pm2p5 = data.mass_concentration_pm2p5;
+    message.pm4p0 = data.mass_concentration_pm4p0;
+    message.pm10p0 = data.mass_concentration_pm10p0;
+    message.temperature = data.ambient_temperature;
+    message.humidity = data.ambient_humidity;
+    message.voc = data.voc_index;
 
     status = pb_encode(&stream, RPDeviceReading_fields, &message);
     message_length = stream.bytes_written;
@@ -232,9 +231,7 @@ bool waitForSBC() {
                     pb_istream_t stream = pb_istream_from_buffer(buffer, buffer_length);
                     bool status = pb_decode(&stream, SBCDeviceTelemetry_fields, &message);
 
-                    if (!status) {
-                        printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-                    } else {
+                    if (status) {
                         ledstatus = message.statCode;
                         return message.sampleSensors;
                     }
@@ -248,8 +245,7 @@ bool waitForSBC() {
 }
 
 void setup() {
-    //en rgb led
-    gpio_init(11);
+    gpio_init(11); //enable rgb led on xiao
     gpio_set_dir(11, GPIO_OUT);
     gpio_put(11, 1);
 
@@ -258,6 +254,24 @@ void setup() {
     pixels.show();
 
     sensor_S8 = new S8_UART(UART_ID, S8_TX_PIN, S8_RX_PIN);
+
+    sensirion_i2c_hal_init();
+    error = sen5x_device_reset();
+    if (error) {
+        printf("Error executing sen5x_device_reset(): %i\n", error);
+    }
+    float temp_offset = 0.0f;
+    int16_t default_slope = 0;
+    uint16_t default_time_constant = 0;
+    error = sen5x_set_temperature_offset_parameters((int16_t) (200 * temp_offset), default_slope,
+                                                    default_time_constant);
+    if (error) {
+        printf("Error executing sen5x_set_temperature_offset_parameters(): %i\n", error);
+    }
+    error = sen5x_start_measurement();
+    if (error) {
+        printf("Error executing sen5x_start_measurement(): %i\n", error);
+    }
 }
 
 int main() {
