@@ -25,9 +25,13 @@ using namespace std;
 int ledstatus = 0;
 Adafruit_NeoPixel pixels(1, 12, NEO_GRB + NEO_KHZ800);
 
-#define S8_RX_PIN 29
-#define S8_TX_PIN 28
+#define SBC_UART_ID uart1
+#define SBC_UART_TX_PIN 4
+#define SBC_UART_RX_PIN 5
+
 #define UART_ID uart0
+#define S8_TX_PIN 0
+#define S8_RX_PIN 1
 S8_UART *sensor_S8;
 S8_sensor sensor;
 
@@ -130,7 +134,7 @@ void ledStatus(int receivedStatus) {
     absolute_time_t endTime = get_absolute_time();
     int64_t duration = absolute_time_diff_us(startTime, endTime) / 1000;
 
-    sleep_ms(4000 - duration); //superloop iteration duration
+    sleep_ms(4000 - duration); //superloop iteration duration controller
 }
 
 int readCO2() {
@@ -194,12 +198,16 @@ void pollSensors() {
     if (!status) {
         printf("Encoding failed: %s\n", PB_GET_ERROR(&stream));
     } else {
-        printf("M:");
+        uart_puts(SBC_UART_ID, "M:");
+        char uart_string[5];
         for (size_t i = 0; i < message_length; ++i) {
-            printf("%02x", buffer[i]);
+            snprintf(uart_string, sizeof(uart_string), "%02x", buffer[i]);
+            uart_puts(SBC_UART_ID, uart_string);
         }
-        printf("\n");
+        uart_puts(SBC_UART_ID, "\r\n");
     }
+
+    printf("health ok \n");
 }
 
 bool waitForSBC() {
@@ -207,47 +215,52 @@ bool waitForSBC() {
     size_t input_pos = 0;
 
     while (true) {
-        int c = getchar_timeout_us(0);
-        if (c != PICO_ERROR_TIMEOUT) {
-            if (c == '\n' || c == '\r') {
-                if (input_pos > 0) {
-                    input_hex[input_pos] = '\0';
-                    size_t input_length = input_pos;
+        // Check if data is available
+        if (uart_is_readable(SBC_UART_ID)) {
+            // Read a character from UART
+            int c = uart_getc(SBC_UART_ID);
+            if (c != PICO_ERROR_TIMEOUT) {
+                if (c == '\n' || c == '\r') {
+                    if (input_pos > 0) {
+                        input_hex[input_pos] = '\0';
+                        size_t input_length = input_pos;
 
-                    if (strncmp(input_hex, "R:", 2) != 0) {
+                        if (strncmp(input_hex, "R:", 2) != 0) {
+                            input_pos = 0;
+                            continue;
+                        }
+
+                        uint8_t buffer[128];
+                        size_t buffer_length = (input_length - 2) / 2;
+
+                        for (size_t i = 0; i < buffer_length; ++i) {
+                            sscanf(input_hex + 2 * i + 2, "%2hhx", &buffer[i]);
+                        }
+
+                        SBCDeviceTelemetry message = SBCDeviceTelemetry_init_default;
+                        pb_istream_t stream = pb_istream_from_buffer(buffer, buffer_length);
+                        bool status = pb_decode(&stream, SBCDeviceTelemetry_fields, &message);
+
+                        if (status) {
+                            ledstatus = message.statCode;
+                            return message.sampleSensors;
+                        }
                         input_pos = 0;
-                        continue;
                     }
-
-                    uint8_t buffer[128];
-                    size_t buffer_length = (input_length - 2) / 2;
-
-                    for (size_t i = 0; i < buffer_length; ++i) {
-                        sscanf(input_hex + 2 * i + 2, "%2hhx", &buffer[i]);
-
-                    }
-
-                    SBCDeviceTelemetry message = SBCDeviceTelemetry_init_default;
-                    pb_istream_t stream = pb_istream_from_buffer(buffer, buffer_length);
-                    bool status = pb_decode(&stream, SBCDeviceTelemetry_fields, &message);
-
-                    if (status) {
-                        ledstatus = message.statCode;
-                        return message.sampleSensors;
-                    }
-                    input_pos = 0;
+                } else if (input_pos < sizeof(input_hex) - 1) {
+                    input_hex[input_pos++] = c;
                 }
-            } else if (input_pos < sizeof(input_hex) - 1) {
-                input_hex[input_pos++] = c;
             }
+        } else {
+            sleep_ms(10);
         }
     }
 }
 
 void setup() {
-    gpio_init(11); //enable rgb led on xiao
-    gpio_set_dir(11, GPIO_OUT);
-    gpio_put(11, 1);
+    uart_init(SBC_UART_ID, 115200);
+    gpio_set_function(SBC_UART_TX_PIN, GPIO_FUNC_UART);
+    gpio_set_function(SBC_UART_RX_PIN, GPIO_FUNC_UART);
 
     pixels.begin();
     pixels.setPixelColor(0, pixels.Color(255, 0, 0));
@@ -279,6 +292,8 @@ int main() {
     sleep_ms(100);
     setup();
     sleep_ms(5000);
+
+    uart_puts(SBC_UART_ID, "hello my friends \n");
 
     while (true) {
 
