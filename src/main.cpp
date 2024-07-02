@@ -21,20 +21,21 @@
 
 using namespace std;
 
+//control vars
+int ledStatus = 0;
+bool takeMeasure = false;
 
-int ledstatus = 0;
 Adafruit_NeoPixel pixels(1, 12, NEO_GRB + NEO_KHZ800);
 
 #define SBC_UART_ID uart1
 #define SBC_UART_TX_PIN 4
 #define SBC_UART_RX_PIN 5
 
-#define UART_ID uart0
+#define S8_UART_ID uart0
 #define S8_TX_PIN 0
 #define S8_RX_PIN 1
 S8_UART *sensor_S8;
 S8_sensor sensor;
-
 
 int16_t error = 0;
 struct SensorValues {
@@ -47,7 +48,7 @@ struct SensorValues {
     int voc_index;
 };
 
-void ledStatus(int receivedStatus) {
+void ledShowStatus(int receivedStatus) {
     absolute_time_t startTime = get_absolute_time();
 
     int g = 0;
@@ -134,15 +135,15 @@ void ledStatus(int receivedStatus) {
     absolute_time_t endTime = get_absolute_time();
     int64_t duration = absolute_time_diff_us(startTime, endTime) / 1000;
 
-    sleep_ms(4000 - duration); //superloop iteration duration controller
+    sleep_ms(4000 - duration); //superloop iteration duration controller: loop time is 4S, logic calls cannot exceed 4Hz
 }
 
-int readCO2() {
+int readS8() {
     sensor.co2 = sensor_S8->get_co2();
     return sensor.co2;
 }
 
-SensorValues readPPM() {
+SensorValues readSEN54() {
     uint16_t mass_concentration_pm1p0;
     uint16_t mass_concentration_pm2p5;
     uint16_t mass_concentration_pm4p0;
@@ -158,6 +159,7 @@ SensorValues readPPM() {
 
     SensorValues values{};
 
+    //todo run fixed division here for ppm values, or just leave as long float
     if (!error) {
         values.mass_concentration_pm1p0 = mass_concentration_pm1p0;
         values.mass_concentration_pm2p5 = mass_concentration_pm2p5;
@@ -177,12 +179,10 @@ void pollSensors() {
     bool status;
 
     RPDeviceReading message = RPDeviceReading_init_default;
-
     pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
-    SensorValues data = readPPM();
-
-    message.co2 = readCO2();
+    SensorValues data = readSEN54();
+    message.co2 = readS8();
 
     message.pm1p0 = data.mass_concentration_pm1p0;
     message.pm2p5 = data.mass_concentration_pm2p5;
@@ -206,8 +206,6 @@ void pollSensors() {
         }
         uart_puts(SBC_UART_ID, "\r\n");
     }
-
-    printf("health ok \n");
 }
 
 bool waitForSBC() {
@@ -215,9 +213,7 @@ bool waitForSBC() {
     size_t input_pos = 0;
 
     while (true) {
-        // Check if data is available
         if (uart_is_readable(SBC_UART_ID)) {
-            // Read a character from UART
             int c = uart_getc(SBC_UART_ID);
             if (c != PICO_ERROR_TIMEOUT) {
                 if (c == '\n' || c == '\r') {
@@ -242,8 +238,8 @@ bool waitForSBC() {
                         bool status = pb_decode(&stream, SBCDeviceTelemetry_fields, &message);
 
                         if (status) {
-                            ledstatus = message.statCode;
-                            return message.sampleSensors;
+                            ledStatus = message.statCode;
+                            takeMeasure = message.sampleSensors;
                         }
                         input_pos = 0;
                     }
@@ -258,15 +254,15 @@ bool waitForSBC() {
 }
 
 void setup() {
-    uart_init(SBC_UART_ID, 115200);
-    gpio_set_function(SBC_UART_TX_PIN, GPIO_FUNC_UART);
-    gpio_set_function(SBC_UART_RX_PIN, GPIO_FUNC_UART);
-
     pixels.begin();
     pixels.setPixelColor(0, pixels.Color(255, 0, 0));
     pixels.show();
 
-    sensor_S8 = new S8_UART(UART_ID, S8_TX_PIN, S8_RX_PIN);
+    uart_init(SBC_UART_ID, 115200);
+    gpio_set_function(SBC_UART_TX_PIN, GPIO_FUNC_UART);
+    gpio_set_function(SBC_UART_RX_PIN, GPIO_FUNC_UART);
+
+    sensor_S8 = new S8_UART(S8_UART_ID, S8_TX_PIN, S8_RX_PIN);
 
     sensirion_i2c_hal_init();
     error = sen5x_device_reset();
@@ -291,19 +287,16 @@ int main() {
     stdio_init_all();
     sleep_ms(100);
     setup();
-    sleep_ms(5000);
-
-    uart_puts(SBC_UART_ID, "hello my friends \n");
+    sleep_ms(5000); // let sensors come online
 
     while (true) {
-
-        bool takeMeasure = waitForSBC();
+        waitForSBC();
 
         if (takeMeasure) {
             pollSensors();
         }
 
-        ledStatus(ledstatus);
+        ledShowStatus(ledStatus);
     }
     return 0;
 }
