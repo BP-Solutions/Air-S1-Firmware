@@ -28,5 +28,4 @@ add_subdirectory(lib/S8_UART)
 
 add_subdirectory(lib/embedded-i2c-sen5x)
 
-# Add subdirectories
 add_subdirectory(src)

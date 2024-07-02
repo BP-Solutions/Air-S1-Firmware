@@ -208,7 +208,7 @@ void pollSensors() {
     }
 }
 
-bool waitForSBC() {
+void waitForSBC() {
     char input_hex[256];
     size_t input_pos = 0;
 
@@ -240,6 +240,7 @@ bool waitForSBC() {
                         if (status) {
                             ledStatus = message.statCode;
                             takeMeasure = message.sampleSensors;
+                            return;
                         }
                         input_pos = 0;
                     }
