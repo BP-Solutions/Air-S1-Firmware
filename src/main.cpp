@@ -96,7 +96,7 @@ void ledShowStatus(int receivedStatus) {
         g = 0;
         b = 255;
 
-        s = 10;
+        s = 8;
         n = 1;
         on = true;
     } else { //didn't set value yet, just be white
@@ -208,10 +208,15 @@ void pollSensors() {
     }
 }
 
+void cleanFan(){
+    sen5x_start_fan_cleaning();
+}
+
 void waitForSBC() {
     char input_hex[256];
     size_t input_pos = 0;
 
+    absolute_time_t startTime = get_absolute_time();
     while (true) {
         if (uart_is_readable(SBC_UART_ID)) {
             int c = uart_getc(SBC_UART_ID);
@@ -251,11 +256,21 @@ void waitForSBC() {
         } else {
             sleep_ms(10);
         }
+
+        absolute_time_t endTime = get_absolute_time();
+        int64_t duration = absolute_time_diff_us(startTime, endTime) / 1000;
+
+        if(duration > 20000){
+            pixels.setBrightness(255);
+            pixels.setPixelColor(0, pixels.Color(0, 255, 0));
+            pixels.show();
+        }
     }
 }
 
 void setup() {
     pixels.begin();
+    pixels.setBrightness(255);
     pixels.setPixelColor(0, pixels.Color(255, 0, 0));
     pixels.show();
 
