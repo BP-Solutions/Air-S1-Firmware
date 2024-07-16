@@ -99,6 +99,14 @@ void ledShowStatus(int receivedStatus) {
         s = 8;
         n = 1;
         on = true;
+    } else if (receivedStatus == 6) { //boot up
+        r = 0;
+        g = 255;
+        b = 0;
+
+        s = 2;
+        n = 2;
+        on = false;
     } else { //didn't set value yet, just be white
         r = 255;
         g = 255;
@@ -260,7 +268,7 @@ void waitForSBC() {
         absolute_time_t endTime = get_absolute_time();
         int64_t duration = absolute_time_diff_us(startTime, endTime) / 1000;
 
-        if(duration > 20000){
+        if(duration > 30000){
             pixels.setBrightness(255);
             pixels.setPixelColor(0, pixels.Color(0, 255, 0));
             pixels.show();
@@ -270,9 +278,8 @@ void waitForSBC() {
 
 void setup() {
     pixels.begin();
-    pixels.setBrightness(255);
-    pixels.setPixelColor(0, pixels.Color(255, 0, 0));
-    pixels.show();
+    ledShowStatus(6);
+
 
     uart_init(SBC_UART_ID, 115200);
     gpio_set_function(SBC_UART_TX_PIN, GPIO_FUNC_UART);
@@ -297,6 +304,10 @@ void setup() {
     if (error) {
         printf("Error executing sen5x_start_measurement(): %i\n", error);
     }
+
+    pixels.setBrightness(255);
+    pixels.setPixelColor(0, pixels.Color(255, 0, 0));
+    pixels.show();
 }
 
 int main() {
