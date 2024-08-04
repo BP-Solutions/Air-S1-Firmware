@@ -25,6 +25,10 @@ using namespace std;
 int ledStatus = 0;
 bool takeMeasure = false;
 
+bool configSXX = false;
+int abcPeriod = 180;
+int SXXCalType = 0;
+
 Adafruit_NeoPixel pixels(1, 12, NEO_GRB + NEO_KHZ800);
 
 #define SBC_UART_ID uart1
@@ -146,6 +150,33 @@ void ledShowStatus(int receivedStatus) {
     sleep_ms(4000 - duration); //superloop iteration duration controller: loop time is 4S, logic calls cannot exceed 4Hz
 }
 
+void configureSXX(int type, int abcPer) {
+
+    printf("starting calibration process");
+    if (type == 1) { // run a zero baseline calibration
+        if (!sensor_S8->manual_calibration_zero()) {
+            printf("Error setting manual calibration!");
+            while (1) { sleep_ms(10); }
+        }
+    } else if (type == 2) { // run a background calibration
+        if (!sensor_S8->manual_calibration_background()) {
+            printf("Error setting manual calibration!");
+            while (1) { sleep_ms(10); }
+        }
+    } // set type to 0 to skip calibration
+
+
+    sensor_S8->set_ABC_period(abcPer);
+    sleep_ms(1000);
+    sensor.abc_period = sensor_S8->get_ABC_period();
+    if (sensor.abc_period == abcPer) {
+        printf("ABC period set successfully");
+    } else {
+        printf("Error: ABC period doesn't set!");
+    }
+
+}
+
 int readS8() {
     sensor.co2 = sensor_S8->get_co2();
     return sensor.co2;
@@ -216,7 +247,7 @@ void pollSensors() {
     }
 }
 
-void cleanFan(){
+void cleanFan() {
     sen5x_start_fan_cleaning();
 }
 
@@ -253,6 +284,11 @@ void waitForSBC() {
                         if (status) {
                             ledStatus = message.statCode;
                             takeMeasure = message.sampleSensors;
+
+                            configSXX = message.configSXX;
+                            abcPeriod = message.abcPer;
+                            SXXCalType = message.SXXCalType;
+
                             return;
                         }
                         input_pos = 0;
@@ -268,7 +304,7 @@ void waitForSBC() {
         absolute_time_t endTime = get_absolute_time();
         int64_t duration = absolute_time_diff_us(startTime, endTime) / 1000;
 
-        if(duration > 30000){
+        if (duration > 30000) {
             pixels.setBrightness(255);
             pixels.setPixelColor(0, pixels.Color(0, 255, 0));
             pixels.show();
@@ -321,6 +357,8 @@ int main() {
 
         if (takeMeasure) {
             pollSensors();
+        } else if (configSXX) {
+            configureSXX(SXXCalType, abcPeriod);
         }
 
         ledShowStatus(ledStatus);

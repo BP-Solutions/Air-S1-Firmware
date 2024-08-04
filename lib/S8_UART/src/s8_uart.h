@@ -152,8 +152,8 @@ public:
     set_ABC_period(int16_t period);                                    // Set ABC period (4 - 4800 hours, 0 to disable)
 
     /* Manual calibration */
-    bool
-    manual_calibration();                                              // Start a manual calibration (it clears acknowledgement flags and it calls to
+    bool manual_calibration_background(); // Start a manual calibration (it clears acknowledgement flags and it calls to
+    bool manual_calibration_zero();
     // send_special_command with background calibration command)
     // (go to outdoors, wait 5 minutes o more and then you call this command)
 

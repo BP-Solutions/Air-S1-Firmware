@@ -5,4 +5,8 @@ message SBCDeviceTelemetry {
     int32 statCode = 1;
     bool inErrorState = 2;
     bool sampleSensors = 3;
+
+    bool configSXX = 4;
+    int32 abcPer = 5;
+    int32 SXXCalType = 6;
 }

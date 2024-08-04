@@ -112,7 +112,8 @@ public:
     int16_t get_PWM_output();
     int16_t get_ABC_period();
     bool set_ABC_period(int16_t period);
-    bool manual_calibration();
+    bool manual_calibration_background();
+    bool manual_calibration_zero();
     int16_t get_acknowledgement();
     bool clear_acknowledgement();
     int16_t get_meter_status();
@@ -200,8 +201,12 @@ bool S8_UART::set_ABC_period(int16_t period) {
     return (serial_read_bytes(8, S8_TIMEOUT) == 8 && valid_response(MODBUS_FUNC_WRITE_SINGLE_REGISTER, 0x00));
 }
 
-bool S8_UART::manual_calibration() {
+bool S8_UART::manual_calibration_background() {
     return send_special_command(S8_CO2_BACKGROUND_CALIBRATION);
+}
+
+bool S8_UART::manual_calibration_zero() {
+    return send_special_command(S8_CO2_ZERO_CALIBRATION);
 }
 
 int16_t S8_UART::get_acknowledgement() {
