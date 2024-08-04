@@ -152,17 +152,33 @@ void ledShowStatus(int receivedStatus) {
 
 void configureSXX(int type, int abcPer) {
 
-    printf("starting calibration process");
+    pixels.setBrightness(255);
+    pixels.setPixelColor(0, pixels.Color(255, 255, 255));
+    pixels.show();
+
+    printf("starting calibration process\n");
     if (type == 1) { // run a zero baseline calibration
+        sleep_ms(360000); // wait 6 minutes
         if (!sensor_S8->manual_calibration_zero()) {
             printf("Error setting manual calibration!");
             while (1) { sleep_ms(10); }
         }
+        printf("finished zero baseline calibration\n");
+
+        pixels.setBrightness(255);
+        pixels.setPixelColor(0, pixels.Color(0, 255, 255));
+        pixels.show();
     } else if (type == 2) { // run a background calibration
+        sleep_ms(360000); // wait 6 minutes
         if (!sensor_S8->manual_calibration_background()) {
             printf("Error setting manual calibration!");
             while (1) { sleep_ms(10); }
         }
+        printf("finished background baseline calibration\n");
+
+        pixels.setBrightness(255);
+        pixels.setPixelColor(0, pixels.Color(0, 255, 255));
+        pixels.show();
     } // set type to 0 to skip calibration
 
 
@@ -170,7 +186,7 @@ void configureSXX(int type, int abcPer) {
     sleep_ms(1000);
     sensor.abc_period = sensor_S8->get_ABC_period();
     if (sensor.abc_period == abcPer) {
-        printf("ABC period set successfully");
+        printf("ABC period set successfully to %d\n", sensor.abc_period);
     } else {
         printf("Error: ABC period doesn't set!");
     }
