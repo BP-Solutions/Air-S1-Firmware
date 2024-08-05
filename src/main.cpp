@@ -1,18 +1,18 @@
 #include <cstring>
 #include <cmath>
 #include <cstdio>
-#include <pb_encode.h>
-#include <pb_decode.h>
 
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
 #include "hardware/structs/rosc.h"
 #include "hardware/gpio.h"
 
-#include "Adafruit_NeoPixel.hpp"
-
+#include <pb_encode.h>
+#include <pb_decode.h>
 #include "RPDeviceReading.pb.h"
 #include "SBCDeviceTelemetry.pb.h"
+
+#include "Adafruit_NeoPixel.hpp"
 
 #include "s8_uart.h"
 
@@ -21,10 +21,9 @@
 
 using namespace std;
 
-//control vars
+//control variables
 int ledStatus = 0;
 bool takeMeasure = false;
-
 bool configSXX = false;
 int abcPeriod = 180;
 int SXXCalType = 0;
@@ -111,7 +110,7 @@ void ledShowStatus(int receivedStatus) {
         s = 2;
         n = 2;
         on = false;
-    } else { //didn't set value yet, just be white
+    } else { //didn't set value yet or calibration, just be white
         r = 255;
         g = 255;
         b = 255;
@@ -147,7 +146,7 @@ void ledShowStatus(int receivedStatus) {
     absolute_time_t endTime = get_absolute_time();
     int64_t duration = absolute_time_diff_us(startTime, endTime) / 1000;
 
-    sleep_ms(4000 - duration); //superloop iteration duration controller: loop time is 4S, logic calls cannot exceed 4Hz
+    sleep_ms(4000 - duration); //super loop iteration controller: loop time is 4S, logic calls cannot exceed 4Hz
 }
 
 void configureSXX(int type, int abcPer) {
@@ -181,7 +180,6 @@ void configureSXX(int type, int abcPer) {
         pixels.show();
     } // set type to 0 to skip calibration
 
-
     sensor_S8->set_ABC_period(abcPer);
     sleep_ms(1000);
     sensor.abc_period = sensor_S8->get_ABC_period();
@@ -190,7 +188,6 @@ void configureSXX(int type, int abcPer) {
     } else {
         printf("Error: ABC period doesn't set!");
     }
-
 }
 
 int readS8() {
@@ -320,7 +317,7 @@ void waitForSBC() {
         absolute_time_t endTime = get_absolute_time();
         int64_t duration = absolute_time_diff_us(startTime, endTime) / 1000;
 
-        if (duration > 30000) {
+        if (duration > 50000) {
             pixels.setBrightness(255);
             pixels.setPixelColor(0, pixels.Color(0, 255, 0));
             pixels.show();
@@ -331,7 +328,6 @@ void waitForSBC() {
 void setup() {
     pixels.begin();
     ledShowStatus(6);
-
 
     uart_init(SBC_UART_ID, 115200);
     gpio_set_function(SBC_UART_TX_PIN, GPIO_FUNC_UART);
@@ -366,7 +362,7 @@ int main() {
     stdio_init_all();
     sleep_ms(100);
     setup();
-    sleep_ms(5000); // let sensors come online
+    sleep_ms(5000);
 
     while (true) {
         waitForSBC();
@@ -379,5 +375,4 @@ int main() {
 
         ledShowStatus(ledStatus);
     }
-    return 0;
 }
