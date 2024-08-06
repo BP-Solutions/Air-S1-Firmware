@@ -158,23 +158,39 @@ void configureSXX(int type, int abcPer) {
     printf("starting calibration process\n");
     if (type == 1) { // run a zero baseline calibration
         sleep_ms(60000); // wait 6 minutes
+
+        sensor_S8->clear_acknowledgement();
+
         if (!sensor_S8->manual_calibration_zero()) {
             printf("Error setting manual calibration!");
             while (1) { sleep_ms(10); }
         }
         printf("finished zero baseline calibration\n");
 
+        sleep_ms(2500);
+
+        int ack = sensor_S8->get_acknowledgement();
+        printf("Command status is %d\n", ack);
+
         pixels.setBrightness(255);
         pixels.setPixelColor(0, pixels.Color(0, 255, 255));
         pixels.show();
     } else if (type == 2) { // run a background calibration
         sleep_ms(60000); // wait 6 minutes
+
+        sensor_S8->clear_acknowledgement();
+
         if (!sensor_S8->manual_calibration_background()) {
             printf("Error setting manual calibration!");
             while (1) { sleep_ms(10); }
         }
         printf("finished background baseline calibration\n");
 
+        sleep_ms(2500);
+
+        int ack = sensor_S8->get_acknowledgement();
+        printf("Command status is %d\n", ack);
+        
         pixels.setBrightness(255);
         pixels.setPixelColor(0, pixels.Color(0, 255, 255));
         pixels.show();
