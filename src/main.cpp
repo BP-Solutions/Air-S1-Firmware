@@ -157,7 +157,7 @@ void configureSXX(int type, int abcPer) {
 
     printf("starting calibration process\n");
     if (type == 1) { // run a zero baseline calibration
-        sleep_ms(360000); // wait 6 minutes
+        sleep_ms(60000); // wait 6 minutes
         if (!sensor_S8->manual_calibration_zero()) {
             printf("Error setting manual calibration!");
             while (1) { sleep_ms(10); }
@@ -168,7 +168,7 @@ void configureSXX(int type, int abcPer) {
         pixels.setPixelColor(0, pixels.Color(0, 255, 255));
         pixels.show();
     } else if (type == 2) { // run a background calibration
-        sleep_ms(360000); // wait 6 minutes
+        sleep_ms(60000); // wait 6 minutes
         if (!sensor_S8->manual_calibration_background()) {
             printf("Error setting manual calibration!");
             while (1) { sleep_ms(10); }
